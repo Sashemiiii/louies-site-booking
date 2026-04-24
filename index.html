@@ -7,7 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: #fff; color: #111; -webkit-font-smoothing: antialiased; }
-    .app { width: 100%; max-width: 100%; padding: 0 0 3rem; }
+    .app { width: 100%; padding: 0 0 3rem; }
     .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 0.5px solid #e0e0e0; }
     .tb-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 8px; transition: background .12s; flex-shrink: 0; }
     .tb-icon:hover { background: #f5f5f5; }
@@ -19,7 +19,6 @@
     .leg { display: flex; align-items: center; gap: 5px; }
     .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
     .scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
-    /* On mobile: calendar scrolls horizontally. On wider screens: fills the viewport */
     .cal { min-width: 560px; }
     @media (min-width: 640px) {
       .topbar { padding: 16px 32px; }
@@ -52,40 +51,16 @@
     .slot.available:hover { background: #f5f5f5; }
     .slot.unavailable { background: #f5f5f5; cursor: default; }
     .slot.unavailable::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,.04) 4px, rgba(0,0,0,.04) 5px); }
+    .slot.taken { background: #f0f0f0; cursor: default; }
     .slot.mine-bishan { background: #185FA5; cursor: pointer; }
     .slot.mine-farrer { background: #0F6E56; cursor: pointer; }
     .slot-lbl { font-size: 8px; color: #fff; position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; }
-    /* ── Shared overlay ── */
-    .overlay-bg {
-      position: fixed; inset: 0; z-index: 100;
-      background: rgba(0,0,0,0);
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px;
-      transition: background 0.3s cubic-bezier(.4,0,.2,1);
-      pointer-events: none;
-    }
-    .overlay-bg.visible {
-      background: rgba(0,0,0,.45);
-      pointer-events: all;
-    }
-    .modal-card {
-      background: #fff;
-      border-radius: 16px;
-      width: 100%; max-width: 420px;
-      padding: 2rem 2rem 2.25rem;
-      box-shadow: 0 24px 64px rgba(0,0,0,.18);
-      opacity: 0;
-      transform: translateY(12px) scale(0.98);
-      transition: opacity 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1);
-      pointer-events: none;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-    .overlay-bg.visible .modal-card {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      pointer-events: all;
-    }
+    .cal-loading { display: flex; align-items: center; justify-content: center; height: 200px; font-size: 13px; color: #aaa; letter-spacing: .06em; text-transform: uppercase; }
+    /* Overlays */
+    .overlay-bg { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0); display: flex; align-items: center; justify-content: center; padding: 24px; transition: background 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; }
+    .overlay-bg.visible { background: rgba(0,0,0,.45); pointer-events: all; }
+    .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 420px; padding: 2rem 2rem 2.25rem; box-shadow: 0 24px 64px rgba(0,0,0,.18); opacity: 0; transform: translateY(12px) scale(0.98); transition: opacity 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1); pointer-events: none; max-height: 90vh; overflow-y: auto; }
+    .overlay-bg.visible .modal-card { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
     .sheet-title { font-size: 17px; font-weight: 500; margin-bottom: .2rem; }
     .sheet-sub { font-size: 13px; color: #666; margin-bottom: 1.25rem; }
     .sheet-row { font-size: 13px; color: #666; margin-bottom: .4rem; }
@@ -96,25 +71,26 @@
     .ls-btn.f { background: #E1F5EE; color: #085041; border-color: #9FE1CB; }
     .ls-btn.b.sel { background: #185FA5; color: #fff; border-color: #185FA5; }
     .ls-btn.f.sel { background: #0F6E56; color: #fff; border-color: #0F6E56; }
-    .btn-primary { width: 100%; padding: 13px; background: #111; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: .75rem; opacity: .4; transition: opacity .15s; }
+    .btn-primary { width: 100%; padding: 13px; background: #111; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: .75rem; opacity: .4; transition: opacity .15s, background .12s; }
     .btn-primary.ready, .btn-primary.always { opacity: 1; }
-    .btn-primary:hover { background: #333; }
-    .btn-remove { width: 100%; padding: 13px; background: transparent; color: #A32D2D; border: 0.5px solid #F09595; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: .5rem; }
+    .btn-primary:hover:not(:disabled) { background: #333; }
+    .btn-primary:disabled { cursor: default; }
+    .btn-remove { width: 100%; padding: 13px; background: transparent; color: #A32D2D; border: 0.5px solid #F09595; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: .5rem; transition: background .12s; }
     .btn-remove:hover { background: #FCEBEB; }
-    .btn-cancel { width: 100%; padding: 11px; background: transparent; color: #666; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: .5rem; }
+    .btn-cancel { width: 100%; padding: 11px; background: transparent; color: #666; border: 0.5px solid #ddd; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: .5rem; transition: background .12s; }
     .btn-cancel:hover { background: #f5f5f5; }
     .confirm-state { text-align: center; padding: .75rem 0; }
     .c-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto .75rem; }
+    .err-msg { font-size: 13px; color: #A32D2D; margin-top: .75rem; text-align: center; min-height: 18px; }
     .auth-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-    .auth-body { }
     .auth-title { font-size: 20px; font-weight: 500; margin-bottom: .3rem; }
     .auth-sub { font-size: 14px; color: #666; margin-bottom: 2rem; }
     .field-label { font-size: 12px; color: #888; margin-bottom: 6px; letter-spacing: .04em; text-transform: uppercase; }
     .field-wrap { margin-bottom: 1.25rem; }
-    input[type=email], input[type=text] { width: 100%; padding: 11px 12px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 15px; background: #fff; color: #111; outline: none; }
+    input[type=email], input[type=text] { width: 100%; padding: 11px 12px; border: 0.5px solid #ccc; border-radius: 8px; font-size: 15px; background: #fff; color: #111; outline: none; transition: border-color .15s; }
     input[type=email]:focus, input[type=text]:focus { border-color: #888; }
     .pin-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
-    .pin-input { width: 100%; aspect-ratio: 1; text-align: center; font-size: 18px; font-weight: 500; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; outline: none; }
+    .pin-input { width: 100%; aspect-ratio: 1; text-align: center; font-size: 18px; font-weight: 500; border: 0.5px solid #ccc; border-radius: 8px; background: #fff; color: #111; outline: none; transition: border-color .15s; }
     .pin-input:focus { border-color: #888; }
     .auth-switch { font-size: 13px; color: #666; text-align: center; margin-top: 1rem; cursor: pointer; }
     .auth-switch span { color: #111; font-weight: 500; text-decoration: underline; }
@@ -126,6 +102,12 @@
     .divider { height: 0.5px; background: #e0e0e0; margin: 1rem 0; }
     .acct-row { display: flex; justify-content: space-between; align-items: center; padding: .6rem 0; font-size: 14px; color: #111; }
     .acct-row span { color: #666; font-size: 13px; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 8px; vertical-align: middle; }
+    .spinner.dark { border-color: rgba(0,0,0,.15); border-top-color: #111; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loc-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 0; border-bottom: 0.5px solid #e0e0e0; }
+    .loc-tab { padding: 10px 0; font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; color: #888; border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
+    .loc-tab.active { color: #111; border-bottom-color: #111; }
   </style>
 </head>
 <body>
@@ -144,10 +126,17 @@
     </div>
   </div>
 
-  <div class="legend">
-    <div class="leg"><div class="leg-dot" style="background:#185FA5"></div>Bishan</div>
-    <div class="leg"><div class="leg-dot" style="background:#0F6E56"></div>Farrer Park</div>
-    <div class="leg"><div class="leg-dot" style="background:#f5f5f5;border:0.5px solid #ddd"></div>Unavailable</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;">
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:#185FA5"></div>Bishan</div>
+      <div class="leg"><div class="leg-dot" style="background:#0F6E56"></div>Farrer Park</div>
+      <div class="leg"><div class="leg-dot" style="background:#f0f0f0;border:0.5px solid #ddd"></div>Taken</div>
+      <div class="leg"><div class="leg-dot" style="background:#f5f5f5;border:0.5px solid #ddd"></div>Blocked</div>
+    </div>
+    <div style="display:flex;gap:8px;padding:10px 0 0;">
+      <button class="loc-tab active" id="tab-bishan" onclick="switchLocation('bishan')">Bishan</button>
+      <button class="loc-tab" id="tab-farrer" onclick="switchLocation('farrer')">Farrer Park</button>
+    </div>
   </div>
 
   <div class="scroll-wrap">
@@ -161,47 +150,50 @@
 <!-- Booking modal -->
 <div class="overlay-bg" id="modal-wrap">
   <div class="modal-card">
-      <div id="view-book">
-        <div class="sheet-title">Book session</div>
-        <div class="sheet-sub">1 hour · Louie's</div>
-        <div class="sheet-row">Day: <span id="s-day"></span></div>
-        <div class="sheet-row">Time: <span id="s-time"></span></div>
-        <div style="font-size:12px;color:#888;margin:.75rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Location</div>
-        <div class="loc-select">
-          <div class="ls-btn b" id="lb" onclick="selectLoc('bishan')">Bishan Nova</div>
-          <div class="ls-btn f" id="lf" onclick="selectLoc('farrer')">Farrer Park Nova</div>
-        </div>
-        <button class="btn-primary" id="btn-go" onclick="confirmBooking()" disabled>Confirm booking</button>
-        <button class="btn-cancel" onclick="closeSheet()">Cancel</button>
+    <div id="view-book">
+      <div class="sheet-title">Book session</div>
+      <div class="sheet-sub">1 hour · Louie's</div>
+      <div class="sheet-row">Day: <span id="s-day"></span></div>
+      <div class="sheet-row">Time: <span id="s-time"></span></div>
+      <div style="font-size:12px;color:#888;margin:.75rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Location</div>
+      <div class="loc-select">
+        <div class="ls-btn b" id="lb" onclick="selectLoc('bishan')">Bishan Nova</div>
+        <div class="ls-btn f" id="lf" onclick="selectLoc('farrer')">Farrer Park Nova</div>
       </div>
-      <div id="view-manage" style="display:none">
-        <div class="sheet-title">Your booking</div>
-        <div class="sheet-sub" id="manage-sub"></div>
-        <div class="sheet-row">Day: <span id="m-day"></span></div>
-        <div class="sheet-row">Time: <span id="m-time"></span></div>
-        <div class="sheet-row">Location: <span id="m-loc"></span></div>
-        <button class="btn-remove" onclick="removeBooking()">Remove booking</button>
-        <button class="btn-cancel" onclick="closeSheet()">Close</button>
+      <div class="err-msg" id="book-err"></div>
+      <button class="btn-primary" id="btn-go" onclick="confirmBooking()" disabled>Confirm booking</button>
+      <button class="btn-cancel" onclick="closeSheet()">Cancel</button>
+    </div>
+    <div id="view-manage" style="display:none">
+      <div class="sheet-title">Your booking</div>
+      <div class="sheet-sub" id="manage-sub"></div>
+      <div class="sheet-row">Day: <span id="m-day"></span></div>
+      <div class="sheet-row">Time: <span id="m-time"></span></div>
+      <div class="sheet-row">Location: <span id="m-loc"></span></div>
+      <div class="err-msg" id="remove-err"></div>
+      <button class="btn-remove" id="btn-remove" onclick="removeBooking()">Remove booking</button>
+      <button class="btn-cancel" onclick="closeSheet()">Close</button>
+    </div>
+    <div id="view-confirm" style="display:none">
+      <div class="confirm-state">
+        <div class="c-icon" style="background:#111"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
+        <div class="sheet-title">Booked</div>
+        <div class="sheet-sub" id="confirm-msg"></div>
+        <button class="btn-primary always" onclick="closeSheet()">Done</button>
       </div>
-      <div id="view-confirm" style="display:none">
-        <div class="confirm-state">
-          <div class="c-icon" style="background:#111"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg></div>
-          <div class="sheet-title">Booked</div>
-          <div class="sheet-sub" id="confirm-msg"></div>
-          <button class="btn-primary always" onclick="closeSheet()">Done</button>
-        </div>
-      </div>
-      <div id="view-removed" style="display:none">
-        <div class="confirm-state">
-          <div class="c-icon" style="background:#FCEBEB"><svg width="22" height="22" viewBox="0 0 24 24" fill="#A32D2D"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></div>
-          <div class="sheet-title">Booking removed</div>
-          <div class="sheet-sub" id="removed-msg"></div>
-          <button class="btn-cancel" style="margin-top:1.25rem" onclick="closeSheet()">Close</button>
-        </div>
+    </div>
+    <div id="view-removed" style="display:none">
+      <div class="confirm-state">
+        <div class="c-icon" style="background:#FCEBEB"><svg width="22" height="22" viewBox="0 0 24 24" fill="#A32D2D"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></div>
+        <div class="sheet-title">Booking removed</div>
+        <div class="sheet-sub" id="removed-msg"></div>
+        <button class="btn-cancel" style="margin-top:1.25rem" onclick="closeSheet()">Close</button>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Auth modal -->
 <div class="overlay-bg" id="auth-panel" style="z-index:200">
   <div class="modal-card">
     <div class="auth-top">
@@ -210,7 +202,6 @@
         <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </div>
     </div>
-    <div class="auth-body">
     <div id="auth-login">
       <div class="auth-title">Log in</div>
       <div class="auth-sub">Enter your email and 6-digit pin</div>
@@ -222,7 +213,8 @@
         <div class="field-label">6-digit pin</div>
         <div class="pin-row" id="login-pin-row"></div>
       </div>
-      <button class="btn-primary always" onclick="doLogin()">Log in</button>
+      <div class="err-msg" id="login-err"></div>
+      <button class="btn-primary always" id="btn-login" onclick="doLogin()">Log in</button>
       <div class="auth-switch">No account? <span onclick="showRegister()">Create one</span></div>
     </div>
     <div id="auth-register" style="display:none">
@@ -236,49 +228,368 @@
         <div class="field-label">Choose a 6-digit pin</div>
         <div class="pin-row" id="reg-pin-row"></div>
       </div>
-      <button class="btn-primary always" onclick="doRegister()">Create account</button>
+      <div class="err-msg" id="reg-err"></div>
+      <button class="btn-primary always" id="btn-register" onclick="doRegister()">Create account</button>
       <div class="auth-switch">Already have one? <span onclick="showLogin()">Log in</span></div>
     </div>
     <div id="auth-loggedin" style="display:none">
       <div class="logged-header">
-        <div class="avatar" id="av-initials">LN</div>
+        <div class="avatar" id="av-initials"></div>
         <div>
           <div class="logged-name" id="av-name"></div>
           <div class="logged-email" id="av-email"></div>
         </div>
       </div>
       <div class="divider"></div>
-      <div class="acct-row">Upcoming bookings <span id="booking-count">0</span></div>
-      <div class="acct-row">Member since <span id="member-since"></span></div>
+      <div class="acct-row">Upcoming bookings <span id="booking-count">—</span></div>
+      <div class="acct-row">Member since <span id="member-since">—</span></div>
       <div class="divider"></div>
       <button class="btn-cancel" style="margin-top:.5rem" onclick="doLogout()">Log out</button>
     </div>
   </div>
-  </div>
 </div>
 
 <script>
+  const API = 'https://louies-site-booking-production.up.railway.app';
   const HOURS = ['6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
   const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const LOC = { bishan: 'Bishan Nova', farrer: 'Farrer Park Nova' };
 
+  // ── State ────────────────────────────────────────────
+  let currentUser = null;
+  let token = localStorage.getItem('ls_token') || null;
+  let selectedSlot = null;
+  let selectedLoc = null;
+  let currentLocation = 'bishan';
+  let slotsData = [];        // array of { slot_start, status }
+  let myBookingIds = {};     // slot_start ISO → booking id (for deletion)
+
+  // ── Date setup ───────────────────────────────────────
   const today = new Date();
   const dow = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  monday.setHours(0,0,0,0);
   const weekDates = DAYS.map((_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
   const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   document.getElementById('week-lbl').textContent = `${fmt(weekDates[0])} – ${fmt(weekDates[6])}`;
 
-  // Mock data — replace with API calls in production
-  const unavailable = new Set(['0-0','0-1','1-2','2-4','3-0','3-1','4-5','4-6','1-8','2-7','0-9','3-10','5-0','5-1','5-2','5-3','6-0','6-1','6-2','6-12','6-13','6-14','5-12','5-13']);
-  const myBookings = new Map([['0-3','bishan'],['2-6','farrer']]);
+  // ── API helpers ──────────────────────────────────────
+  async function apiFetch(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(API + path, { ...options, headers });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Something went wrong.');
+    return data;
+  }
 
-  let selectedSlot = null, selectedLoc = null, currentUser = null;
+  // ── Auth ─────────────────────────────────────────────
+  function getInitials(email) {
+    const parts = email.split('@')[0].split('.');
+    return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
+  }
 
+  function setUserUI(user) {
+    currentUser = user;
+    const initials = getInitials(user.email);
+    document.getElementById('acct-btn').innerHTML = `<div class="tb-avatar">${initials}</div>`;
+    document.getElementById('av-initials').textContent = initials;
+    document.getElementById('av-name').textContent = user.email.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
+    document.getElementById('av-email').textContent = user.email;
+    const since = new Date(user.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    document.getElementById('member-since').textContent = since;
+  }
+
+  function clearUserUI() {
+    currentUser = null;
+    token = null;
+    localStorage.removeItem('ls_token');
+    document.getElementById('acct-btn').innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:none;stroke:#111;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
+  }
+
+  async function restoreSession() {
+    if (!token) return;
+    try {
+      const user = await apiFetch('/auth/me');
+      setUserUI(user);
+      loadSlots();
+    } catch {
+      clearUserUI();
+    }
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pin = getPin('login-pin-row');
+    const errEl = document.getElementById('login-err');
+    errEl.textContent = '';
+    if (!email || pin.length < 6) { errEl.textContent = 'Enter your email and full 6-digit pin.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.innerHTML = '<span class="spinner"></span>Logging in…'; btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, pin }) });
+      token = data.token;
+      localStorage.setItem('ls_token', token);
+      setUserUI(data.user);
+      closeAuth();
+      loadSlots();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Log in'; btn.disabled = false;
+    }
+  }
+
+  async function doRegister() {
+    const email = document.getElementById('reg-email').value.trim();
+    const pin = getPin('reg-pin-row');
+    const errEl = document.getElementById('reg-err');
+    errEl.textContent = '';
+    if (!email || pin.length < 6) { errEl.textContent = 'Fill in all fields.'; return; }
+    const btn = document.getElementById('btn-register');
+    btn.innerHTML = '<span class="spinner"></span>Creating…'; btn.disabled = true;
+    try {
+      const data = await apiFetch('/auth/register', { method: 'POST', body: JSON.stringify({ email, pin }) });
+      token = data.token;
+      localStorage.setItem('ls_token', token);
+      setUserUI(data.user);
+      closeAuth();
+      loadSlots();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Create account'; btn.disabled = false;
+    }
+  }
+
+  function doLogout() {
+    clearUserUI();
+    slotsData = [];
+    myBookingIds = {};
+    rebuildGrid();
+    showLogin();
+  }
+
+  // ── Slots ────────────────────────────────────────────
+  async function loadSlots() {
+    if (!token) return;
+    const weekParam = monday.toISOString().split('T')[0];
+    document.getElementById('cal-grid').innerHTML = `<div class="cal-loading" style="grid-column:1/-1"><span class="spinner dark"></span>&nbsp;Loading</div>`;
+    try {
+      const data = await apiFetch(`/slots?week=${weekParam}&location=${currentLocation}`);
+      slotsData = data.slots;
+
+      // Rebuild myBookingIds from bookings/mine
+      const mine = await apiFetch('/bookings/mine');
+      myBookingIds = {};
+      mine.bookings.forEach(b => { myBookingIds[b.slot_start] = b.id; });
+
+      document.getElementById('booking-count').textContent = mine.bookings.filter(b => new Date(b.slot_start) >= today).length;
+      rebuildGrid();
+    } catch (e) {
+      document.getElementById('cal-grid').innerHTML = `<div class="cal-loading" style="grid-column:1/-1;color:#A32D2D">Failed to load slots</div>`;
+    }
+  }
+
+  function slotStatus(dayIndex, hourIndex) {
+    const slotDate = new Date(weekDates[dayIndex]);
+    slotDate.setHours(6 + hourIndex, 0, 0, 0);
+    const iso = slotDate.toISOString();
+    const found = slotsData.find(s => {
+      const d = new Date(s.slot_start);
+      return d.getFullYear() === slotDate.getFullYear() &&
+             d.getMonth() === slotDate.getMonth() &&
+             d.getDate() === slotDate.getDate() &&
+             d.getHours() === slotDate.getHours();
+    });
+    return found ? found.status : 'open';
+  }
+
+  function slotIso(dayIndex, hourIndex) {
+    const d = new Date(weekDates[dayIndex]);
+    d.setHours(6 + hourIndex, 0, 0, 0);
+    return d.toISOString();
+  }
+
+  function switchLocation(loc) {
+    currentLocation = loc;
+    document.getElementById('tab-bishan').classList.toggle('active', loc === 'bishan');
+    document.getElementById('tab-farrer').classList.toggle('active', loc === 'farrer');
+    if (token) loadSlots(); else rebuildGrid();
+  }
+
+  // ── Calendar render ───────────────────────────────────
+  const headers = document.getElementById('day-headers');
+  headers.innerHTML = '<div class="day-head"></div>' + DAYS.map((d, i) => {
+    const date = weekDates[i];
+    const isToday = date.toDateString() === today.toDateString();
+    return `<div class="day-head"><div class="day-name">${d}</div><div class="day-num${isToday ? ' today' : ''}">${date.getDate()}</div></div>`;
+  }).join('');
+
+  const grid = document.getElementById('cal-grid');
+
+  function rebuildGrid() {
+    grid.innerHTML = '';
+    HOURS.forEach((h, hi) => {
+      const tl = document.createElement('div'); tl.className = 'time-lbl'; tl.textContent = h; grid.appendChild(tl);
+      DAYS.forEach((_, di) => {
+        const cell = document.createElement('div'); cell.className = 'slot';
+        const status = token ? slotStatus(di, hi) : 'open';
+        const iso = slotIso(di, hi);
+
+        if (status === 'blocked' || status === 'unavailable') {
+          cell.classList.add('unavailable');
+        } else if (status === 'taken') {
+          cell.classList.add('taken');
+        } else if (status === 'mine') {
+          cell.classList.add(`mine-${currentLocation}`);
+          const lbl = document.createElement('div'); lbl.className = 'slot-lbl';
+          lbl.textContent = currentLocation === 'bishan' ? 'B' : 'F';
+          cell.appendChild(lbl);
+          cell.onclick = () => openManage(di, hi, h, iso);
+        } else {
+          cell.classList.add('available');
+          cell.onclick = () => {
+            if (!token) { openAuth(); return; }
+            openBook(di, hi, h, iso);
+          };
+        }
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  rebuildGrid();
+
+  // ── Booking flow ──────────────────────────────────────
+  function showView(id) {
+    ['view-book','view-manage','view-confirm','view-removed'].forEach(v => {
+      document.getElementById(v).style.display = v === id ? '' : 'none';
+    });
+  }
+
+  function openBook(di, hi, hour, iso) {
+    selectedSlot = { di, hi, hour, iso }; selectedLoc = currentLocation;
+    document.getElementById('s-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
+    document.getElementById('s-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
+    document.getElementById('lb').classList.toggle('sel', currentLocation === 'bishan');
+    document.getElementById('lf').classList.toggle('sel', currentLocation === 'farrer');
+    document.getElementById('book-err').textContent = '';
+    document.getElementById('btn-go').disabled = false;
+    document.getElementById('btn-go').classList.add('ready');
+    showView('view-book');
+    openModal();
+  }
+
+  function openManage(di, hi, hour, iso) {
+    selectedSlot = { di, hi, hour, iso };
+    document.getElementById('m-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
+    document.getElementById('m-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
+    document.getElementById('m-loc').textContent = LOC[currentLocation];
+    document.getElementById('manage-sub').textContent = `1 hour · Louie's · ${LOC[currentLocation]}`;
+    document.getElementById('remove-err').textContent = '';
+    showView('view-manage');
+    openModal();
+  }
+
+  function selectLoc(loc) {
+    selectedLoc = loc;
+    document.getElementById('lb').classList.toggle('sel', loc === 'bishan');
+    document.getElementById('lf').classList.toggle('sel', loc === 'farrer');
+    document.getElementById('btn-go').disabled = false;
+    document.getElementById('btn-go').classList.add('ready');
+  }
+
+  async function confirmBooking() {
+    if (!selectedSlot) return;
+    const btn = document.getElementById('btn-go');
+    const errEl = document.getElementById('book-err');
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="spinner"></span>Booking…'; btn.disabled = true;
+    try {
+      await apiFetch('/bookings', {
+        method: 'POST',
+        body: JSON.stringify({ slot_start: selectedSlot.iso, location: selectedLoc })
+      });
+      document.getElementById('confirm-msg').textContent =
+        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getDate()}, ${selectedSlot.hour} – ${HOURS[selectedSlot.hi + 1] || '21:00'} · ${LOC[selectedLoc]}`;
+      showView('view-confirm');
+      loadSlots();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Confirm booking'; btn.disabled = false; btn.classList.add('ready');
+    }
+  }
+
+  async function removeBooking() {
+    if (!selectedSlot) return;
+    const bookingId = myBookingIds[selectedSlot.iso];
+    if (!bookingId) { document.getElementById('remove-err').textContent = 'Booking not found.'; return; }
+    const btn = document.getElementById('btn-remove');
+    const errEl = document.getElementById('remove-err');
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="spinner dark"></span>Removing…'; btn.disabled = true;
+    try {
+      await apiFetch(`/bookings/${bookingId}`, { method: 'DELETE' });
+      document.getElementById('removed-msg').textContent =
+        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getDate()}, ${selectedSlot.hour} · ${LOC[currentLocation]}`;
+      showView('view-removed');
+      loadSlots();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Remove booking'; btn.disabled = false;
+    }
+  }
+
+  // ── Modal open/close ──────────────────────────────────
+  function openModal() {
+    const m = document.getElementById('modal-wrap');
+    m.style.display = 'flex';
+    requestAnimationFrame(() => m.classList.add('visible'));
+  }
+  function closeSheet() {
+    const m = document.getElementById('modal-wrap');
+    m.classList.remove('visible');
+    setTimeout(() => { m.style.display = 'none'; selectedSlot = null; selectedLoc = null; }, 300);
+  }
+  function openAuth() {
+    const p = document.getElementById('auth-panel');
+    p.style.display = 'flex';
+    requestAnimationFrame(() => p.classList.add('visible'));
+    currentUser ? showLoggedIn() : showLogin();
+  }
+  function closeAuth() {
+    const p = document.getElementById('auth-panel');
+    p.classList.remove('visible');
+    setTimeout(() => p.style.display = 'none', 300);
+  }
+
+  // ── Auth panel views ──────────────────────────────────
+  function showLogin() {
+    document.getElementById('auth-login').style.display = '';
+    document.getElementById('auth-register').style.display = 'none';
+    document.getElementById('auth-loggedin').style.display = 'none';
+    document.getElementById('auth-panel-title').textContent = 'Log in';
+  }
+  function showRegister() {
+    document.getElementById('auth-login').style.display = 'none';
+    document.getElementById('auth-register').style.display = '';
+    document.getElementById('auth-loggedin').style.display = 'none';
+    document.getElementById('auth-panel-title').textContent = 'Create account';
+  }
+  function showLoggedIn() {
+    document.getElementById('auth-login').style.display = 'none';
+    document.getElementById('auth-register').style.display = 'none';
+    document.getElementById('auth-loggedin').style.display = '';
+    document.getElementById('auth-panel-title').textContent = 'Account';
+  }
+
+  // ── PIN inputs ────────────────────────────────────────
   function makePinInputs(rowId) {
-    const row = document.getElementById(rowId);
-    row.innerHTML = '';
+    const row = document.getElementById(rowId); row.innerHTML = '';
     for (let i = 0; i < 6; i++) {
       const inp = document.createElement('input');
       inp.type = 'text'; inp.maxLength = 1; inp.className = 'pin-input'; inp.inputMode = 'numeric';
@@ -301,174 +612,16 @@
 
   function goHome() { window.open('https://trainwithlouies.com', '_blank'); }
 
-  function openAuth() {
-    const p = document.getElementById('auth-panel');
-    p.style.display = 'flex';
-    requestAnimationFrame(() => p.classList.add('visible'));
-    currentUser ? showLoggedIn() : showLogin();
-  }
-  function closeAuth() {
-    const p = document.getElementById('auth-panel');
-    p.classList.remove('visible');
-    setTimeout(() => p.style.display = 'none', 300);
-  }
-
-  function showLogin() {
-    document.getElementById('auth-login').style.display = '';
-    document.getElementById('auth-register').style.display = 'none';
-    document.getElementById('auth-loggedin').style.display = 'none';
-    document.getElementById('auth-panel-title').textContent = 'Log in';
-  }
-  function showRegister() {
-    document.getElementById('auth-login').style.display = 'none';
-    document.getElementById('auth-register').style.display = '';
-    document.getElementById('auth-loggedin').style.display = 'none';
-    document.getElementById('auth-panel-title').textContent = 'Create account';
-  }
-  function showLoggedIn() {
-    document.getElementById('auth-login').style.display = 'none';
-    document.getElementById('auth-register').style.display = 'none';
-    document.getElementById('auth-loggedin').style.display = '';
-    document.getElementById('auth-panel-title').textContent = 'Account';
-    if (currentUser) {
-      const parts = currentUser.email.split('@')[0].split('.');
-      const initials = (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
-      document.getElementById('av-initials').textContent = initials;
-      document.getElementById('av-name').textContent = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
-      document.getElementById('av-email').textContent = currentUser.email;
-      document.getElementById('booking-count').textContent = myBookings.size;
-      document.getElementById('member-since').textContent = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-      document.getElementById('acct-btn').innerHTML = `<div class="tb-avatar">${initials}</div>`;
-    }
-  }
-
-  function doLogin() {
-    const email = document.getElementById('login-email').value.trim();
-    const pin = getPin('login-pin-row');
-    if (!email || pin.length < 6) { alert('Please enter your email and full 6-digit pin.'); return; }
-    currentUser = { email, pin };
-    showLoggedIn();
-  }
-  function doRegister() {
-    const email = document.getElementById('reg-email').value.trim();
-    const pin = getPin('reg-pin-row');
-    if (!email || pin.length < 6) { alert('Please fill in all fields.'); return; }
-    currentUser = { email, pin };
-    showLoggedIn();
-  }
-  function doLogout() {
-    currentUser = null;
-    document.getElementById('acct-btn').innerHTML = `<svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:none;stroke:#111;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`;
-    showLogin();
-  }
-
-  const headers = document.getElementById('day-headers');
-  headers.innerHTML = '<div class="day-head"></div>' + DAYS.map((d, i) => {
-    const date = weekDates[i];
-    const isToday = date.toDateString() === today.toDateString();
-    return `<div class="day-head"><div class="day-name">${d}</div><div class="day-num${isToday ? ' today' : ''}">${date.getDate()}</div></div>`;
-  }).join('');
-
-  const grid = document.getElementById('cal-grid');
-
-  function rebuildGrid() {
-    grid.innerHTML = '';
-    HOURS.forEach((h, hi) => {
-      const tl = document.createElement('div'); tl.className = 'time-lbl'; tl.textContent = h; grid.appendChild(tl);
-      DAYS.forEach((_, di) => {
-        const key = `${di}-${hi}`;
-        const cell = document.createElement('div'); cell.className = 'slot';
-        if (myBookings.has(key)) {
-          const loc = myBookings.get(key);
-          cell.classList.add(`mine-${loc}`);
-          const lbl = document.createElement('div'); lbl.className = 'slot-lbl'; lbl.textContent = loc === 'bishan' ? 'B' : 'F';
-          cell.appendChild(lbl);
-          cell.onclick = () => openManage(di, hi, h, loc);
-        } else if (unavailable.has(key)) {
-          cell.classList.add('unavailable');
-        } else {
-          cell.classList.add('available');
-          cell.onclick = () => openBook(di, hi, h, cell);
-        }
-        grid.appendChild(cell);
-      });
-    });
-  }
-  rebuildGrid();
-
-  function showView(id) {
-    ['view-book','view-manage','view-confirm','view-removed'].forEach(v => {
-      document.getElementById(v).style.display = v === id ? '' : 'none';
-    });
-  }
-
-  function openBook(di, hi, hour, cell) {
-    selectedSlot = { di, hi, hour, cell }; selectedLoc = null;
-    document.getElementById('s-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
-    document.getElementById('s-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
-    document.getElementById('lb').classList.remove('sel');
-    document.getElementById('lf').classList.remove('sel');
-    document.getElementById('btn-go').disabled = true;
-    document.getElementById('btn-go').classList.remove('ready');
-    showView('view-book');
-    openModal();
-  }
-
-  function openManage(di, hi, hour, loc) {
-    selectedSlot = { di, hi, hour };
-    document.getElementById('m-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
-    document.getElementById('m-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
-    document.getElementById('m-loc').textContent = LOC[loc];
-    document.getElementById('manage-sub').textContent = `1 hour · Louie's · ${LOC[loc]}`;
-    showView('view-manage');
-    openModal();
-  }
-
-  function selectLoc(loc) {
-    selectedLoc = loc;
-    document.getElementById('lb').classList.toggle('sel', loc === 'bishan');
-    document.getElementById('lf').classList.toggle('sel', loc === 'farrer');
-    document.getElementById('btn-go').disabled = false;
-    document.getElementById('btn-go').classList.add('ready');
-  }
-
-  function confirmBooking() {
-    if (!selectedSlot || !selectedLoc) return;
-    const { di, hi, hour } = selectedSlot;
-    myBookings.set(`${di}-${hi}`, selectedLoc);
-    rebuildGrid();
-    document.getElementById('confirm-msg').textContent = `${DAYS[di]} ${weekDates[di].getDate()}, ${hour} – ${HOURS[hi + 1] || '21:00'} · ${LOC[selectedLoc]}`;
-    showView('view-confirm');
-  }
-
-  function removeBooking() {
-    if (!selectedSlot) return;
-    const { di, hi, hour } = selectedSlot;
-    const key = `${di}-${hi}`;
-    const loc = myBookings.get(key);
-    myBookings.delete(key);
-    rebuildGrid();
-    document.getElementById('removed-msg').textContent = `${DAYS[di]} ${weekDates[di].getDate()}, ${hour} · ${LOC[loc]}`;
-    showView('view-removed');
-  }
-
-  function openModal() {
-    const m = document.getElementById('modal-wrap');
-    m.style.display = 'flex';
-    requestAnimationFrame(() => m.classList.add('visible'));
-  }
-  function closeSheet() {
-    const m = document.getElementById('modal-wrap');
-    m.classList.remove('visible');
-    setTimeout(() => { m.style.display = 'none'; selectedSlot = null; selectedLoc = null; }, 300);
-  }
-
+  // ── Backdrop clicks ───────────────────────────────────
   document.getElementById('modal-wrap').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-wrap')) closeSheet();
   });
   document.getElementById('auth-panel').addEventListener('click', e => {
     if (e.target === document.getElementById('auth-panel')) closeAuth();
   });
+
+  // ── Init ──────────────────────────────────────────────
+  restoreSession();
 </script>
 </body>
 </html>
