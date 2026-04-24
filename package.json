@@ -1,0 +1,7 @@
+{
+  "name": "louies-booking",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "npx serve . -p ${PORT:-3000}"
+  }
+}
