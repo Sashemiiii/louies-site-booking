@@ -106,7 +106,8 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .loc-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 0; border-bottom: 0.5px solid #e0e0e0; }
     .loc-tab { padding: 10px 0; font-size: 13px; font-weight: 500; cursor: pointer; text-align: center; color: #888; border-bottom: 2px solid transparent; transition: all .15s; background: none; border-top: none; border-left: none; border-right: none; }
-    .loc-tab.active { color: #111; border-bottom-color: #111; }
+    .loc-tab.active.bishan { color: #185FA5; border-bottom-color: #185FA5; }
+    .loc-tab.active.farrer { color: #0F6E56; border-bottom-color: #0F6E56; }
   </style>
 </head>
 <body>
@@ -133,8 +134,8 @@
       <div class="leg"><div class="leg-dot" style="background:#f5f5f5;border:0.5px solid #ddd"></div>Blocked</div>
     </div>
     <div style="display:flex;gap:8px;padding:10px 0 0;">
-      <button class="loc-tab active" id="tab-bishan" onclick="switchLocation('bishan')">Bishan</button>
-      <button class="loc-tab" id="tab-farrer" onclick="switchLocation('farrer')">Farrer Park</button>
+      <button class="loc-tab active bishan" id="tab-bishan" onclick="switchLocation('bishan')">Bishan</button>
+      <button class="loc-tab farrer" id="tab-farrer" onclick="switchLocation('farrer')">Farrer Park</button>
     </div>
   </div>
 
@@ -154,13 +155,9 @@
       <div class="sheet-sub">1 hour · Louie's</div>
       <div class="sheet-row">Day: <span id="s-day"></span></div>
       <div class="sheet-row">Time: <span id="s-time"></span></div>
-      <div style="font-size:12px;color:#888;margin:.75rem 0 .25rem;text-transform:uppercase;letter-spacing:.04em">Location</div>
-      <div class="loc-select">
-        <div class="ls-btn b" id="lb" onclick="selectLoc('bishan')">Bishan Nova</div>
-        <div class="ls-btn f" id="lf" onclick="selectLoc('farrer')">Farrer Park Nova</div>
-      </div>
+      <div class="sheet-row">Location: <span id="s-loc"></span></div>
       <div class="err-msg" id="book-err"></div>
-      <button class="btn-primary" id="btn-go" onclick="confirmBooking()" disabled>Confirm booking</button>
+      <button class="btn-primary ready" id="btn-go" onclick="confirmBooking()">Confirm booking</button>
       <button class="btn-cancel" onclick="closeSheet()">Cancel</button>
     </div>
     <div id="view-manage" style="display:none">
@@ -510,14 +507,12 @@
   }
 
   function openBook(di, hi, hour, iso) {
-    selectedSlot = { di, hi, hour, iso }; selectedLoc = currentLocation;
+    selectedSlot = { di, hi, hour, iso };
+    selectedLoc = currentLocation;
     document.getElementById('s-day').textContent = `${DAYS[di]} ${weekDates[di].getUTCDate()}`;
     document.getElementById('s-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
-    document.getElementById('lb').classList.toggle('sel', currentLocation === 'bishan');
-    document.getElementById('lf').classList.toggle('sel', currentLocation === 'farrer');
+    document.getElementById('s-loc').textContent = LOC[currentLocation];
     document.getElementById('book-err').textContent = '';
-    document.getElementById('btn-go').disabled = false;
-    document.getElementById('btn-go').classList.add('ready');
     showView('view-book');
     openModal();
   }
