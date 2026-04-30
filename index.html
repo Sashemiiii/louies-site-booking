@@ -298,7 +298,7 @@
     // weekDates[di] is already the UTC equivalent of SGT midnight
     // SGT hour 6 = UTC hour (6 - 8) = previous day 22:00 UTC
     const sgtMidnightUTC = weekDates[dayIndex].getTime(); // UTC ms for SGT 00:00
-    const utcMs = sgtMidnightUTC - SGT_OFFSET * 60000 + (6 + hourIndex) * 3600000;
+    const utcMs = sgtMidnightUTC + (6 + hourIndex) * 3600000;
     return new Date(utcMs).toISOString(); // always ends in Z
   }
 
