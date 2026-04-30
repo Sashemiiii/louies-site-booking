@@ -247,8 +247,9 @@
             </div>
         </div>
         <div id="auth-login">
-            <div class="auth-title">Log in</div>
-            <div class="auth-sub">Enter your email and 6-digit pin</div>
+              <div class="auth-top" style="margin-bottom:.75rem">
+                <div class="auth-sub" style="margin-bottom:0">Enter your email and 6-digit pin</div>
+              </div>
             <div class="field-wrap">
                 <div class="field-label">Email address</div>
                 <input type="email" id="login-email" placeholder="you@email.com">
@@ -537,6 +538,7 @@
     const headers = document.getElementById('day-headers');
     const todaySGT = toSGT(new Date());
     function rebuildHeaders() {
+        const todaySGT = toSGT(new Date());
         headers.innerHTML = '<div class="day-head"></div>' + DAYS.map((d, i) => {
             const date = weekDates[i];
             const isToday = date.getUTCFullYear() === todaySGT.getUTCFullYear() &&
@@ -550,35 +552,58 @@
     const grid = document.getElementById('cal-grid');
 
     function rebuildGrid() {
-      grid.innerHTML = '';
-      HOURS.forEach((h, hi) => {
+    grid.innerHTML = '';
+
+    HOURS.forEach((h, hi) => {
         const tl = document.createElement('div'); tl.className = 'time-lbl'; tl.textContent = h; grid.appendChild(tl);
         DAYS.forEach((_, di) => {
-          const cell = document.createElement('div'); cell.className = 'slot';
-          const iso = slotUTC(di, hi);
-          const status = slotStatus(di, hi);
-
-          if (status === 'blocked' || status === 'unavailable') {
-            cell.classList.add('unavailable');
-          } else if (status === 'taken') {
-            cell.classList.add('taken');
-          } else if (status === 'mine') {
-            cell.classList.add(`mine-${currentLocation}`);
-            const lbl = document.createElement('div'); lbl.className = 'slot-lbl';
-            lbl.textContent = currentLocation === 'bishan' ? 'B' : 'F';
-            cell.appendChild(lbl);
-            cell.onclick = () => openManage(di, hi, h, iso);
-          } else {
-            cell.classList.add('available');
-            cell.onclick = () => {
-              if (!token) { openAuth(); return; }
-              openBook(di, hi, h, iso);
-            };
-          }
-          grid.appendChild(cell);
+            const cell = document.createElement('div'); cell.className = 'slot';
+            if (!token) {
+                cell.classList.add('taken'); // neutral grey when logged out
+            } else {
+                const iso = slotUTC(di, hi);
+                const status = slotStatus(di, hi);
+                if (status === 'blocked' || status === 'unavailable') {
+                    cell.classList.add('unavailable');
+                } else if (status === 'taken') {
+                    cell.classList.add('taken');
+                } else if (status === 'mine') {
+                    cell.classList.add(`mine-${currentLocation}`);
+                    const lbl = document.createElement('div'); lbl.className = 'slot-lbl';
+                    lbl.textContent = currentLocation === 'bishan' ? 'B' : 'F';
+                    cell.appendChild(lbl);
+                    cell.onclick = () => openManage(di, hi, h, iso);
+                } else {
+                    cell.classList.add('available');
+                    cell.onclick = () => openBook(di, hi, h, iso);
+                }
+            }
+            grid.appendChild(cell);
         });
-      });
+    });
+
+    // Show/hide login prompt overlay
+    const existing = document.getElementById('login-prompt');
+    if (!token) {
+        if (!existing) {
+            const wrap = document.querySelector('.scroll-wrap');
+            wrap.style.position = 'relative';
+            const prompt = document.createElement('div');
+            prompt.id = 'login-prompt';
+            prompt.style.cssText = 'position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);background:rgba(255,255,255,0.5);cursor:pointer;';
+            prompt.innerHTML = `
+                <div style="background:#fff;border-radius:14px;padding:1.5rem 2rem;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);max-width:280px;">
+                    <div style="font-size:15px;font-weight:500;color:#111;margin-bottom:.4rem;">See available slots</div>
+                    <div style="font-size:13px;color:#666;margin-bottom:1.1rem;">Log in or create an account to view and book sessions.</div>
+                    <div style="background:#111;color:#fff;padding:10px 24px;border-radius:8px;font-size:13px;font-weight:500;display:inline-block;">Log in / Sign up</div>
+                </div>`;
+            prompt.addEventListener('click', openAuth);
+            wrap.appendChild(prompt);
+        }
+    } else {
+        if (existing) existing.remove();
     }
+}
 
     rebuildGrid();
 
