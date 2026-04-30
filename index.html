@@ -56,7 +56,6 @@
     .slot.mine-farrer { background: #0F6E56; cursor: pointer; }
     .slot-lbl { font-size: 8px; color: #fff; position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; }
     .cal-loading { display: flex; align-items: center; justify-content: center; height: 200px; font-size: 13px; color: #aaa; letter-spacing: .06em; text-transform: uppercase; }
-    /* Overlays */
     .overlay-bg { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0); display: flex; align-items: center; justify-content: center; padding: 24px; transition: background 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; }
     .overlay-bg.visible { background: rgba(0,0,0,.45); pointer-events: all; }
     .modal-card { background: #fff; border-radius: 16px; width: 100%; max-width: 420px; padding: 2rem 2rem 2.25rem; box-shadow: 0 24px 64px rgba(0,0,0,.18); opacity: 0; transform: translateY(12px) scale(0.98); transition: opacity 0.28s cubic-bezier(.4,0,.2,1), transform 0.28s cubic-bezier(.4,0,.2,1); pointer-events: none; max-height: 90vh; overflow-y: auto; }
@@ -261,18 +260,58 @@
   let selectedSlot = null;
   let selectedLoc = null;
   let currentLocation = 'bishan';
-  let slotsData = [];        // array of { slot_start, status }
-  let myBookingIds = {};     // slot_start ISO → booking id (for deletion)
+  let slotsData = [];
+  let myBookingIds = {};  // canonical UTC ISO → booking id
 
-  // ── Date setup ───────────────────────────────────────
-  const today = new Date();
-  const dow = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
-  monday.setHours(0,0,0,0);
-  const weekDates = DAYS.map((_, i) => { const d = new Date(monday); d.setDate(monday.getDate() + i); return d; });
-  const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  // ── Date setup (SGT-aware) ────────────────────────────
+  // We always work in SGT (UTC+8) for display, UTC for API calls.
+  const SGT_OFFSET = 8 * 60; // minutes
+
+  function toSGT(date) {
+    // Returns a new Date object shifted to SGT
+    return new Date(date.getTime() + SGT_OFFSET * 60000);
+  }
+
+  // Build week dates as UTC midnight values representing SGT days.
+  // i.e. "Monday SGT" = the UTC timestamp for 00:00 SGT Monday = Sunday 16:00 UTC
+  const nowUTC = new Date();
+  const nowSGT = toSGT(nowUTC);
+  const dowSGT = nowSGT.getUTCDay(); // 0=Sun
+  const mondaySGT = new Date(nowSGT);
+  mondaySGT.setUTCDate(nowSGT.getUTCDate() - (dowSGT === 0 ? 6 : dowSGT - 1));
+  mondaySGT.setUTCHours(0, 0, 0, 0);
+
+  // weekDates[i] = UTC Date representing start of day i in SGT
+  const weekDates = DAYS.map((_, i) => {
+    const d = new Date(mondaySGT);
+    d.setUTCDate(mondaySGT.getUTCDate() + i);
+    return d;
+  });
+
+  const fmt = d => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+  };
   document.getElementById('week-lbl').textContent = `${fmt(weekDates[0])} – ${fmt(weekDates[6])}`;
+
+  // ── Slot ISO generation (always UTC) ─────────────────
+  // slot_start for SGT hour H on weekDates[di] = (SGT midnight - 8h) + H hours
+  // = weekDates[di] (which is SGT 00:00 expressed as UTC) minus 8h offset + H hours
+  function slotUTC(dayIndex, hourIndex) {
+    // weekDates[di] is already the UTC equivalent of SGT midnight
+    // SGT hour 6 = UTC hour (6 - 8) = previous day 22:00 UTC
+    const sgtMidnightUTC = weekDates[dayIndex].getTime(); // UTC ms for SGT 00:00
+    const utcMs = sgtMidnightUTC - SGT_OFFSET * 60000 + (6 + hourIndex) * 3600000;
+    return new Date(utcMs).toISOString(); // always ends in Z
+  }
+
+  // ── week param for API (Monday in SGT expressed as YYYY-MM-DD) ───
+  function weekParam() {
+    const y = mondaySGT.getUTCFullYear();
+    const m = String(mondaySGT.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(mondaySGT.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
 
   // ── API helpers ──────────────────────────────────────
   async function apiFetch(path, options = {}) {
@@ -297,8 +336,9 @@
     document.getElementById('av-initials').textContent = initials;
     document.getElementById('av-name').textContent = user.email.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
     document.getElementById('av-email').textContent = user.email;
-    const since = new Date(user.created_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-    document.getElementById('member-since').textContent = since;
+    const since = new Date(user.created_at);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('member-since').textContent = `${months[since.getUTCMonth()]} ${since.getUTCFullYear()}`;
   }
 
   function clearUserUI() {
@@ -365,8 +405,10 @@
 
   function doLogout() {
     clearUserUI();
-    slotsData = [];
+    // Keep slotsData so taken/blocked slots remain visible after logout
     myBookingIds = {};
+    // Re-mark any "mine" slots as "taken" so logged-out view is accurate
+    slotsData = slotsData.map(s => s.status === 'mine' ? { ...s, status: 'taken' } : s);
     rebuildGrid();
     showLogin();
   }
@@ -374,18 +416,27 @@
   // ── Slots ────────────────────────────────────────────
   async function loadSlots() {
     if (!token) return;
-    const weekParam = monday.toISOString().split('T')[0];
     document.getElementById('cal-grid').innerHTML = `<div class="cal-loading" style="grid-column:1/-1"><span class="spinner dark"></span>&nbsp;Loading</div>`;
     try {
-      const data = await apiFetch(`/slots?week=${weekParam}&location=${currentLocation}`);
-      slotsData = data.slots;
+      const [slotsRes, mineRes] = await Promise.all([
+        apiFetch(`/slots?week=${weekParam()}&location=${currentLocation}`),
+        apiFetch('/bookings/mine')
+      ]);
 
-      // Rebuild myBookingIds from bookings/mine
-      const mine = await apiFetch('/bookings/mine');
+      slotsData = slotsRes.slots;
+
+      // Key myBookingIds by the canonical UTC ISO from the API response
       myBookingIds = {};
-      mine.bookings.forEach(b => { myBookingIds[b.slot_start] = b.id; });
+      mineRes.bookings.forEach(b => {
+        // Normalise to Z-suffix UTC ISO for consistent lookup
+        const key = new Date(b.slot_start).toISOString();
+        myBookingIds[key] = b.id;
+      });
 
-      document.getElementById('booking-count').textContent = mine.bookings.filter(b => new Date(b.slot_start) >= today).length;
+      const nowMs = Date.now();
+      document.getElementById('booking-count').textContent =
+        mineRes.bookings.filter(b => new Date(b.slot_start).getTime() >= nowMs).length;
+
       rebuildGrid();
     } catch (e) {
       document.getElementById('cal-grid').innerHTML = `<div class="cal-loading" style="grid-column:1/-1;color:#A32D2D">Failed to load slots</div>`;
@@ -393,23 +444,9 @@
   }
 
   function slotStatus(dayIndex, hourIndex) {
-    const slotDate = new Date(weekDates[dayIndex]);
-    slotDate.setHours(6 + hourIndex, 0, 0, 0);
-    const iso = slotDate.toISOString();
-    const found = slotsData.find(s => {
-      const d = new Date(s.slot_start);
-      return d.getFullYear() === slotDate.getFullYear() &&
-             d.getMonth() === slotDate.getMonth() &&
-             d.getDate() === slotDate.getDate() &&
-             d.getHours() === slotDate.getHours();
-    });
+    const iso = slotUTC(dayIndex, hourIndex);
+    const found = slotsData.find(s => new Date(s.slot_start).toISOString() === iso);
     return found ? found.status : 'open';
-  }
-
-  function slotIso(dayIndex, hourIndex) {
-    const d = new Date(weekDates[dayIndex]);
-    d.setHours(6 + hourIndex, 0, 0, 0);
-    return d.toISOString();
   }
 
   function switchLocation(loc) {
@@ -421,10 +458,13 @@
 
   // ── Calendar render ───────────────────────────────────
   const headers = document.getElementById('day-headers');
+  const todaySGT = toSGT(new Date());
   headers.innerHTML = '<div class="day-head"></div>' + DAYS.map((d, i) => {
     const date = weekDates[i];
-    const isToday = date.toDateString() === today.toDateString();
-    return `<div class="day-head"><div class="day-name">${d}</div><div class="day-num${isToday ? ' today' : ''}">${date.getDate()}</div></div>`;
+    const isToday = date.getUTCFullYear() === todaySGT.getUTCFullYear() &&
+                    date.getUTCMonth() === todaySGT.getUTCMonth() &&
+                    date.getUTCDate() === todaySGT.getUTCDate();
+    return `<div class="day-head"><div class="day-name">${d}</div><div class="day-num${isToday ? ' today' : ''}">${date.getUTCDate()}</div></div>`;
   }).join('');
 
   const grid = document.getElementById('cal-grid');
@@ -435,8 +475,8 @@
       const tl = document.createElement('div'); tl.className = 'time-lbl'; tl.textContent = h; grid.appendChild(tl);
       DAYS.forEach((_, di) => {
         const cell = document.createElement('div'); cell.className = 'slot';
-        const status = token ? slotStatus(di, hi) : 'open';
-        const iso = slotIso(di, hi);
+        const iso = slotUTC(di, hi);
+        const status = slotStatus(di, hi);
 
         if (status === 'blocked' || status === 'unavailable') {
           cell.classList.add('unavailable');
@@ -471,7 +511,7 @@
 
   function openBook(di, hi, hour, iso) {
     selectedSlot = { di, hi, hour, iso }; selectedLoc = currentLocation;
-    document.getElementById('s-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
+    document.getElementById('s-day').textContent = `${DAYS[di]} ${weekDates[di].getUTCDate()}`;
     document.getElementById('s-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
     document.getElementById('lb').classList.toggle('sel', currentLocation === 'bishan');
     document.getElementById('lf').classList.toggle('sel', currentLocation === 'farrer');
@@ -484,7 +524,7 @@
 
   function openManage(di, hi, hour, iso) {
     selectedSlot = { di, hi, hour, iso };
-    document.getElementById('m-day').textContent = `${DAYS[di]} ${weekDates[di].getDate()}`;
+    document.getElementById('m-day').textContent = `${DAYS[di]} ${weekDates[di].getUTCDate()}`;
     document.getElementById('m-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
     document.getElementById('m-loc').textContent = LOC[currentLocation];
     document.getElementById('manage-sub').textContent = `1 hour · Louie's · ${LOC[currentLocation]}`;
@@ -513,7 +553,7 @@
         body: JSON.stringify({ slot_start: selectedSlot.iso, location: selectedLoc })
       });
       document.getElementById('confirm-msg').textContent =
-        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getDate()}, ${selectedSlot.hour} – ${HOURS[selectedSlot.hi + 1] || '21:00'} · ${LOC[selectedLoc]}`;
+        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getUTCDate()}, ${selectedSlot.hour} – ${HOURS[selectedSlot.hi + 1] || '21:00'} · ${LOC[selectedLoc]}`;
       showView('view-confirm');
       loadSlots();
     } catch (e) {
@@ -525,8 +565,12 @@
 
   async function removeBooking() {
     if (!selectedSlot) return;
+    // Look up booking ID using canonical UTC ISO key
     const bookingId = myBookingIds[selectedSlot.iso];
-    if (!bookingId) { document.getElementById('remove-err').textContent = 'Booking not found.'; return; }
+    if (!bookingId) {
+      document.getElementById('remove-err').textContent = 'Booking not found. Try refreshing.';
+      return;
+    }
     const btn = document.getElementById('btn-remove');
     const errEl = document.getElementById('remove-err');
     errEl.textContent = '';
@@ -534,7 +578,7 @@
     try {
       await apiFetch(`/bookings/${bookingId}`, { method: 'DELETE' });
       document.getElementById('removed-msg').textContent =
-        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getDate()}, ${selectedSlot.hour} · ${LOC[currentLocation]}`;
+        `${DAYS[selectedSlot.di]} ${weekDates[selectedSlot.di].getUTCDate()}, ${selectedSlot.hour} · ${LOC[currentLocation]}`;
       showView('view-removed');
       loadSlots();
     } catch (e) {
