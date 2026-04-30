@@ -44,7 +44,7 @@
         .day-head { padding: .4rem 0; text-align: center; }
         .day-name { font-size: 10px; letter-spacing: .08em; color: #aaa; text-transform: uppercase; }
         .day-num { font-size: 14px; font-weight: 500; color: #111; margin-top: 2px; }
-        .day-num.today { background: #111; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 2px auto 0; font-size: 12px; }
+        day-num.today { background: #C0392B; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 2px auto 0; font-size: 12px; }
         .grid { display: grid; grid-template-columns: 40px repeat(7, 1fr); }
         .time-lbl { font-size: 9px; color: #bbb; text-align: right; padding-right: 6px; line-height: 40px; }
         .slot { height: 40px; border-bottom: 0.5px solid #e0e0e0; border-left: 0.5px solid #e0e0e0; cursor: pointer; position: relative; transition: background .12s; }
@@ -149,26 +149,31 @@
                 <div class="leg-dot" style="background:#c8c8c8;border:0.5px solid #bbb"></div>
                 Blocked
             </div>
-            <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
-              <button onclick="shiftWeek(-1)" style="background:none;border:0.5px solid #ddd;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">‹</button>
-              <div class="week-lbl" id="week-lbl"></div>
-              <button onclick="shiftWeek(1)" style="background:none;border:0.5px solid #ddd;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">›</button>
+            <div style="display:flex;align-items:center;gap:8px;margin-left:12px;">
+                <button onclick="shiftWeek(-1)"
+                        style="background:none;border:0.5px solid #ddd;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">
+                    ‹
+                </button>
+                <div id="week-lbl"
+                     style="font-size:11px;letter-spacing:.08em;color:#666;text-transform:uppercase;white-space:nowrap;"></div>
+                <button onclick="shiftWeek(1)"
+                        style="background:none;border:0.5px solid #ddd;border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">
+                    ›
+                </button>
             </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;padding:10px 0 0;">
-            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#aaa;font-weight:500">Select
-                location
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 0 0;">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#aaa;font-weight:500;white-space:nowrap;">
+                Select location
             </div>
-            <div style="display:flex;gap:6px;">
-                <button id="tab-bishan" onclick="switchLocation('bishan')"
-                        style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:#185FA5;color:#fff;opacity:1;transition:opacity .15s,background .15s;">
-                    Bishan
-                </button>
-                <button id="tab-farrer" onclick="switchLocation('farrer')"
-                        style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:#e0e0e0;color:#888;opacity:1;transition:opacity .15s,background .15s;">
-                    Farrer Park
-                </button>
-            </div>
+            <button id="tab-bishan" onclick="switchLocation('bishan')"
+                    style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:#185FA5;color:#fff;transition:opacity .15s,background .15s;">
+                Bishan
+            </button>
+            <button id="tab-farrer" onclick="switchLocation('farrer')"
+                    style="padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;background:#e0e0e0;color:#888;transition:opacity .15s,background .15s;">
+                Farrer Park
+            </button>
         </div>
     </div>
 
