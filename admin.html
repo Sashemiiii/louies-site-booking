@@ -344,21 +344,28 @@
 
   // ── Data ──
   async function loadData() {
-    document.getElementById('cal-grid').innerHTML = '<div class="cal-loading"><span class="spinner"></span>&nbsp;Loading</div>';
-    try {
-      const [slotsRes, bookingsRes, blockedRes] = await Promise.all([
-        apiFetch(`/slots?week=${weekParam()}&location=${currentLocation}`),
-        apiFetch('/admin/bookings'),
-        apiFetch(`/admin/blocks?week=${weekParam()}&location=${currentLocation}`)
-      ]);
-      slotsData = slotsRes.slots;
-      allBookings = bookingsRes.bookings;
-      blockedList = blockedRes.blocks;
-      updateStats();
-      rebuildGrid();
-    } catch (e) {
-      document.getElementById('cal-grid').innerHTML = '<div class="cal-loading" style="color:#C0392B">Failed to load</div>';
-    }
+      document.getElementById('cal-grid').innerHTML = '<div class="cal-loading"><span class="spinner"></span>&nbsp;Loading</div>';
+      try {
+          const [slotsRes, bookingsRes] = await Promise.all([
+              apiFetch(`/slots?week=${weekParam()}&location=${currentLocation}`),
+              apiFetch('/admin/bookings')
+          ]);
+          slotsData = slotsRes.slots;
+          allBookings = bookingsRes.bookings;
+
+          // Try to fetch blocks — non-fatal if endpoint not deployed yet
+          try {
+              const blockedRes = await apiFetch(`/admin/blocks?week=${weekParam()}&location=${currentLocation}`);
+              blockedList = blockedRes.blocks;
+          } catch (e) {
+              blockedList = [];
+          }
+
+          updateStats();
+          rebuildGrid();
+      } catch (e) {
+          document.getElementById('cal-grid').innerHTML = `<div class="cal-loading" style="color:#C0392B">Failed to load — ${e.message}</div>`;
+      }
   }
 
   function updateStats() {
