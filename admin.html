@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Louie's System — Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: #0a0a0a; color: #f0f0f0; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+
+    .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .login-card { background: #141414; border: 0.5px solid #2a2a2a; border-radius: 16px; padding: 2.5rem 2rem; width: 100%; max-width: 360px; }
+    .login-logo { height: 36px; object-fit: contain; margin-bottom: 1.75rem; display: block; }
+    .login-title { font-size: 18px; font-weight: 500; margin-bottom: .3rem; }
+    .login-sub { font-size: 13px; color: #666; margin-bottom: 2rem; }
+    .field-label { font-size: 11px; color: #555; margin-bottom: 6px; letter-spacing: .06em; text-transform: uppercase; }
+    .field-wrap { margin-bottom: 1.25rem; }
+    input[type=email] { width: 100%; padding: 11px 12px; border: 0.5px solid #2a2a2a; border-radius: 8px; font-size: 15px; background: #1a1a1a; color: #f0f0f0; outline: none; transition: border-color .15s; }
+    input[type=email]:focus { border-color: #555; }
+    .pin-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .pin-input { width: 100%; aspect-ratio: 1; text-align: center; font-size: 18px; font-weight: 500; border: 0.5px solid #2a2a2a; border-radius: 8px; background: #1a1a1a; color: #f0f0f0; outline: none; transition: border-color .15s; }
+    .pin-input:focus { border-color: #555; }
+    .btn-login { width: 100%; padding: 13px; background: #f0f0f0; color: #0a0a0a; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; }
+    .btn-login:hover { background: #fff; }
+    .err-msg { font-size: 12px; color: #e05555; margin-top: .75rem; text-align: center; min-height: 16px; }
+
+    .app { display: none; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 0.5px solid #1e1e1e; background: #0a0a0a; position: sticky; top: 0; z-index: 50; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .admin-badge { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; background: #C0392B; color: #fff; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+    .topbar-logo { height: 32px; object-fit: contain; }
+    .btn-logout { font-size: 12px; color: #555; background: none; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 6px 12px; cursor: pointer; transition: all .15s; }
+    .btn-logout:hover { color: #f0f0f0; border-color: #555; }
+
+    .controls { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 0.5px solid #1e1e1e; flex-wrap: wrap; gap: 8px; }
+    .week-nav { display: flex; align-items: center; gap: 6px; }
+    .week-btn { background: none; border: 0.5px solid #2a2a2a; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; font-size: 14px; color: #888; display: flex; align-items: center; justify-content: center; transition: all .15s; }
+    .week-btn:hover { border-color: #555; color: #f0f0f0; }
+    .week-lbl { font-size: 11px; letter-spacing: .08em; color: #666; text-transform: uppercase; white-space: nowrap; }
+    .loc-tabs { display: flex; gap: 6px; }
+    .loc-tab { padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+    .loc-tab.bishan { background: #1a2e45; color: #5b9fd4; }
+    .loc-tab.bishan.active { background: #185FA5; color: #fff; }
+    .loc-tab.farrer { background: #122b22; color: #4db891; }
+    .loc-tab.farrer.active { background: #0F6E56; color: #fff; }
+
+    .legend { display: flex; gap: 12px; padding: 8px 16px; font-size: 11px; color: #555; border-bottom: 0.5px solid #1e1e1e; }
+    .leg { display: flex; align-items: center; gap: 5px; }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+    .stats { display: flex; gap: 16px; padding: 8px 16px; border-bottom: 0.5px solid #1e1e1e; }
+    .stat { font-size: 11px; color: #444; }
+    .stat span { color: #888; font-weight: 600; }
+
+    .scroll-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .cal { min-width: 560px; }
+    @media (min-width: 640px) { .cal { min-width: unset; width: 100%; } }
+    .day-headers { display: grid; grid-template-columns: 40px repeat(7, 1fr); border-bottom: 0.5px solid #1e1e1e; }
+    .day-head { padding: .4rem 0; text-align: center; }
+    .day-name { font-size: 10px; letter-spacing: .08em; color: #444; text-transform: uppercase; }
+    .day-num { font-size: 14px; font-weight: 500; color: #888; margin-top: 2px; }
+    .day-num.today { background: #C0392B; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 2px auto 0; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 40px repeat(7, 1fr); }
+    .time-lbl { font-size: 9px; color: #333; text-align: right; padding-right: 6px; line-height: 44px; }
+    .slot { height: 44px; border-bottom: 0.5px solid #1a1a1a; border-left: 0.5px solid #1a1a1a; cursor: pointer; position: relative; transition: background .1s; }
+    .slot.open { background: #111; }
+    .slot.open:hover { background: #1c1c1c; }
+    .slot.open:hover .slot-hint { display: flex; }
+    .slot-hint { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; font-size: 9px; color: #444; letter-spacing: .06em; pointer-events: none; }
+    .slot.booked { background: #0d1f0d; cursor: pointer; }
+    .slot.blocked { background: #2a1010; cursor: pointer; }
+    .slot.blocked:hover { background: #351414; }
+    .slot-x { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #C0392B; opacity: .5; pointer-events: none; }
+
+    .overlay-bg { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0); display: flex; align-items: center; justify-content: center; padding: 24px; transition: background 0.25s; pointer-events: none; }
+    .overlay-bg.visible { background: rgba(0,0,0,.7); pointer-events: all; }
+    .modal-card { background: #141414; border: 0.5px solid #2a2a2a; border-radius: 14px; width: 100%; max-width: 380px; padding: 1.75rem; box-shadow: 0 24px 64px rgba(0,0,0,.5); opacity: 0; transform: translateY(10px) scale(0.98); transition: opacity 0.22s, transform 0.22s; pointer-events: none; }
+    .overlay-bg.visible .modal-card { opacity: 1; transform: translateY(0) scale(1); pointer-events: all; }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: .25rem; }
+    .modal-sub { font-size: 13px; color: #555; margin-bottom: 1.25rem; }
+    .modal-row { font-size: 13px; color: #555; margin-bottom: .35rem; }
+    .modal-row span { color: #ccc; font-weight: 500; }
+    .reason-wrap { margin: 1rem 0 .75rem; }
+    .reason-input { width: 100%; padding: 10px 12px; border: 0.5px solid #2a2a2a; border-radius: 8px; font-size: 13px; background: #1a1a1a; color: #f0f0f0; outline: none; transition: border-color .15s; }
+    .reason-input:focus { border-color: #555; }
+    .btn-block { width: 100%; padding: 12px; background: #C0392B; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s; margin-bottom: .5rem; }
+    .btn-block:hover { background: #a93226; }
+    .btn-unblock { width: 100%; padding: 12px; background: transparent; color: #e05555; border: 0.5px solid #3a1515; border-radius: 8px; font-size: 14px; cursor: pointer; transition: background .15s; margin-bottom: .5rem; }
+    .btn-unblock:hover { background: #2a1010; }
+    .btn-cancel { width: 100%; padding: 11px; background: transparent; color: #555; border: 0.5px solid #222; border-radius: 8px; font-size: 13px; cursor: pointer; transition: background .15s; }
+    .btn-cancel:hover { background: #1a1a1a; }
+    .modal-err { font-size: 12px; color: #e05555; margin-bottom: .5rem; text-align: center; min-height: 16px; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
+    .spinner.dark { border-color: rgba(0,0,0,.15); border-top-color: #333; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .cal-loading { display: flex; align-items: center; justify-content: center; height: 200px; font-size: 12px; color: #333; letter-spacing: .08em; text-transform: uppercase; grid-column: 1/-1; }
+  </style>
+</head>
+<body>
+
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <img class="login-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System">
+    <div class="login-title">Admin access</div>
+    <div class="login-sub">Log in with your admin credentials</div>
+    <div class="field-wrap">
+      <div class="field-label">Email</div>
+      <input type="email" id="login-email" placeholder="admin@email.com">
+    </div>
+    <div class="field-wrap">
+      <div class="field-label">6-digit pin</div>
+      <div class="pin-row" id="login-pin-row"></div>
+    </div>
+    <div class="err-msg" id="login-err"></div>
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Log in</button>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <img class="topbar-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System">
+      <div class="admin-badge">Admin</div>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Log out</button>
+  </div>
+
+  <div class="controls">
+    <div class="week-nav">
+      <button class="week-btn" onclick="shiftWeek(-1)">‹</button>
+      <div class="week-lbl" id="week-lbl"></div>
+      <button class="week-btn" onclick="shiftWeek(1)">›</button>
+    </div>
+    <div class="loc-tabs">
+      <button class="loc-tab bishan active" id="tab-bishan" onclick="switchLocation('bishan')">Bishan</button>
+      <button class="loc-tab farrer" id="tab-farrer" onclick="switchLocation('farrer')">Farrer Park</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="leg"><div class="leg-dot" style="background:#111;border:0.5px solid #2a2a2a"></div>Open</div>
+    <div class="leg"><div class="leg-dot" style="background:#0d1f0d;border:0.5px solid #1a3a1a"></div>Booked</div>
+    <div class="leg"><div class="leg-dot" style="background:#2a1010;border:0.5px solid #5a2020"></div>Blocked</div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">Bookings this week: <span id="stat-bookings">—</span></div>
+    <div class="stat">Blocked slots: <span id="stat-blocked">—</span></div>
+  </div>
+
+  <div class="scroll-wrap">
+    <div class="cal">
+      <div class="day-headers" id="day-headers"></div>
+      <div class="grid" id="cal-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay-bg" id="modal-wrap">
+  <div class="modal-card">
+    <div id="view-block">
+      <div class="modal-title">Block slot</div>
+      <div class="modal-sub">Prevent bookings for this time</div>
+      <div class="modal-row">Day: <span id="b-day"></span></div>
+      <div class="modal-row">Time: <span id="b-time"></span></div>
+      <div class="modal-row">Location: <span id="b-loc"></span></div>
+      <div class="reason-wrap">
+        <div class="field-label" style="color:#444;margin-bottom:6px;">Reason (optional)</div>
+        <input class="reason-input" id="block-reason" placeholder="e.g. Personal, Maintenance…">
+      </div>
+      <div class="modal-err" id="block-err"></div>
+      <button class="btn-block" id="btn-block" onclick="confirmBlock()">Block slot</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+    <div id="view-unblock" style="display:none">
+      <div class="modal-title">Unblock slot</div>
+      <div class="modal-sub">Re-open this slot for bookings</div>
+      <div class="modal-row">Day: <span id="u-day"></span></div>
+      <div class="modal-row">Time: <span id="u-time"></span></div>
+      <div class="modal-row">Location: <span id="u-loc"></span></div>
+      <div class="modal-err" id="unblock-err"></div>
+      <button class="btn-unblock" id="btn-unblock" onclick="confirmUnblock()">Unblock slot</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+    <div id="view-booked" style="display:none">
+      <div class="modal-title">Slot is booked</div>
+      <div class="modal-sub">A client has this slot</div>
+      <div class="modal-row">Day: <span id="k-day"></span></div>
+      <div class="modal-row">Time: <span id="k-time"></span></div>
+      <div class="modal-row">Location: <span id="k-loc"></span></div>
+      <div class="modal-row">Client: <span id="k-email"></span></div>
+      <div style="height:.75rem"></div>
+      <button class="btn-cancel" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'https://api.trainwithlouies.com';
+  const HOURS = ['6:00','7:00','8:00','9:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+  const DAYS_FULL = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const LOC = { bishan: 'Bishan Nova', farrer: 'Farrer Park Nova' };
+  const SGT_OFFSET = 8 * 60;
+
+  let token = localStorage.getItem('ls_admin_token') || null;
+  let currentLocation = 'bishan';
+  let slotsData = [];
+  let allBookings = [];
+  let blockedList = [];
+  let selectedSlot = null;
+
+  function toSGT(date) { return new Date(date.getTime() + SGT_OFFSET * 60000); }
+
+  const nowUTC = new Date();
+  const nowSGT = toSGT(nowUTC);
+  const dowSGT = nowSGT.getUTCDay();
+  let mondaySGT = new Date(nowSGT);
+  mondaySGT.setUTCDate(nowSGT.getUTCDate() - (dowSGT === 0 ? 6 : dowSGT - 1));
+  mondaySGT.setUTCHours(0, 0, 0, 0);
+
+  let weekDates = [];
+  function buildWeekDates() {
+    weekDates = DAYS_FULL.map((_, i) => {
+      const d = new Date(mondaySGT);
+      d.setUTCDate(mondaySGT.getUTCDate() + i);
+      return d;
+    });
+  }
+  buildWeekDates();
+
+  const fmt = d => {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${d.getUTCDate()} ${months[d.getUTCMonth()]}`;
+  };
+
+  function updateWeekLabel() {
+    document.getElementById('week-lbl').textContent = `${fmt(weekDates[0])} – ${fmt(weekDates[6])}`;
+  }
+
+  function slotUTC(dayIndex, hourIndex) {
+    const sgtMidnightUTC = weekDates[dayIndex].getTime();
+    const utcMs = sgtMidnightUTC + (6 + hourIndex) * 3600000;
+    return new Date(utcMs).toISOString();
+  }
+
+  function weekParam() {
+    const y = mondaySGT.getUTCFullYear();
+    const m = String(mondaySGT.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(mondaySGT.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function shiftWeek(delta) {
+    mondaySGT.setUTCDate(mondaySGT.getUTCDate() + delta * 7);
+    buildWeekDates();
+    updateWeekLabel();
+    rebuildHeaders();
+    loadData();
+  }
+
+  async function apiFetch(path, opts = {}) {
+    const res = await fetch(API + path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Request failed');
+    return data;
+  }
+
+  // ── PIN inputs ──
+  function makePinInputs(rowId) {
+    const row = document.getElementById(rowId); row.innerHTML = '';
+    for (let i = 0; i < 6; i++) {
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.maxLength = 1; inp.className = 'pin-input'; inp.inputMode = 'numeric';
+      inp.addEventListener('input', e => {
+        e.target.value = e.target.value.replace(/\D/, '');
+        if (e.target.value && inp.nextSibling) inp.nextSibling.focus();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !inp.value && inp.previousSibling) inp.previousSibling.focus();
+      });
+      row.appendChild(inp);
+    }
+  }
+  makePinInputs('login-pin-row');
+
+  function getPin(rowId) {
+    return Array.from(document.getElementById(rowId).querySelectorAll('input')).map(i => i.value).join('');
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pin = getPin('login-pin-row');
+    const errEl = document.getElementById('login-err');
+    errEl.textContent = '';
+    if (!email || pin.length < 6) { errEl.textContent = 'Enter your email and full 6-digit pin.'; return; }
+    const btn = document.getElementById('btn-login');
+    btn.innerHTML = '<span class="spinner dark"></span>Logging in…'; btn.disabled = true;
+    try {
+      const res = await fetch(API + '/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, pin })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.detail || 'Login failed');
+      token = json.token;
+      // Verify admin access
+      try {
+        await apiFetch('/admin/bookings');
+      } catch (e) {
+        token = null;
+        throw new Error('Not an admin account.');
+      }
+      localStorage.setItem('ls_admin_token', token);
+      showApp();
+    } catch (e) {
+      errEl.textContent = e.message;
+      token = null;
+    } finally {
+      btn.innerHTML = 'Log in'; btn.disabled = false;
+    }
+  }
+
+  function doLogout() {
+    token = null;
+    localStorage.removeItem('ls_admin_token');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+    makePinInputs('login-pin-row');
+    document.getElementById('login-email').value = '';
+    document.getElementById('login-err').textContent = '';
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    updateWeekLabel();
+    rebuildHeaders();
+    loadData();
+  }
+
+  // ── Data ──
+  async function loadData() {
+    document.getElementById('cal-grid').innerHTML = '<div class="cal-loading"><span class="spinner"></span>&nbsp;Loading</div>';
+    try {
+      const [slotsRes, bookingsRes, blockedRes] = await Promise.all([
+        apiFetch(`/slots?week=${weekParam()}&location=${currentLocation}`),
+        apiFetch('/admin/bookings'),
+        apiFetch(`/admin/blocks?week=${weekParam()}&location=${currentLocation}`)
+      ]);
+      slotsData = slotsRes.slots;
+      allBookings = bookingsRes.bookings;
+      blockedList = blockedRes.blocks;
+      updateStats();
+      rebuildGrid();
+    } catch (e) {
+      document.getElementById('cal-grid').innerHTML = '<div class="cal-loading" style="color:#C0392B">Failed to load</div>';
+    }
+  }
+
+  function updateStats() {
+    const weekStart = weekDates[0].getTime() - SGT_OFFSET * 60000;
+    const weekEnd = weekStart + 7 * 24 * 3600000;
+    const thisWeek = allBookings.filter(b => {
+      const t = new Date(b.slot_start).getTime();
+      return t >= weekStart && t < weekEnd && b.location === currentLocation;
+    });
+    document.getElementById('stat-bookings').textContent = thisWeek.length;
+    document.getElementById('stat-blocked').textContent = blockedList.length;
+  }
+
+  function slotStatus(dayIndex, hourIndex) {
+    const iso = slotUTC(dayIndex, hourIndex);
+    const found = slotsData.find(s => new Date(s.slot_start).toISOString() === iso);
+    return found ? found.status : 'open';
+  }
+
+  function getBookingForSlot(iso) {
+    return allBookings.find(b => new Date(b.slot_start).toISOString() === iso && b.location === currentLocation);
+  }
+
+  function getBlockForSlot(iso) {
+    return blockedList.find(b => new Date(b.slot_start).toISOString() === iso);
+  }
+
+  function switchLocation(loc) {
+    currentLocation = loc;
+    document.getElementById('tab-bishan').classList.toggle('active', loc === 'bishan');
+    document.getElementById('tab-farrer').classList.toggle('active', loc === 'farrer');
+    loadData();
+  }
+
+  // ── Calendar ──
+  const headers = document.getElementById('day-headers');
+
+  function rebuildHeaders() {
+    const todaySGT = toSGT(new Date());
+    headers.innerHTML = '<div class="day-head"></div>' + DAYS_FULL.map((d, i) => {
+      const date = weekDates[i];
+      const isToday = date.getUTCFullYear() === todaySGT.getUTCFullYear() &&
+                      date.getUTCMonth() === todaySGT.getUTCMonth() &&
+                      date.getUTCDate() === todaySGT.getUTCDate();
+      return `<div class="day-head"><div class="day-name">${d}</div><div class="day-num${isToday ? ' today' : ''}">${date.getUTCDate()}</div></div>`;
+    }).join('');
+  }
+
+  const grid = document.getElementById('cal-grid');
+
+  function rebuildGrid() {
+    grid.innerHTML = '';
+    HOURS.forEach((h, hi) => {
+      const tl = document.createElement('div'); tl.className = 'time-lbl'; tl.textContent = h; grid.appendChild(tl);
+      DAYS_FULL.forEach((_, di) => {
+        const cell = document.createElement('div'); cell.className = 'slot';
+        const iso = slotUTC(di, hi);
+        const status = slotStatus(di, hi);
+
+        if (status === 'blocked') {
+          cell.classList.add('blocked');
+          const x = document.createElement('div'); x.className = 'slot-x'; x.textContent = '✕';
+          cell.appendChild(x);
+          cell.onclick = () => openUnblock(di, hi, h, iso);
+        } else if (status === 'taken' || status === 'mine') {
+          cell.classList.add('booked');
+          const booking = getBookingForSlot(iso);
+          cell.onclick = () => openBooked(di, hi, h, iso, booking);
+        } else {
+          cell.classList.add('open');
+          const hint = document.createElement('div'); hint.className = 'slot-hint'; hint.textContent = '+ block';
+          cell.appendChild(hint);
+          cell.onclick = () => openBlock(di, hi, h, iso);
+        }
+        grid.appendChild(cell);
+      });
+    });
+  }
+
+  // ── Modal ──
+  function showModalView(id) {
+    ['view-block','view-unblock','view-booked'].forEach(v => {
+      document.getElementById(v).style.display = v === id ? '' : 'none';
+    });
+  }
+
+  function openModal() {
+    const m = document.getElementById('modal-wrap');
+    m.style.display = 'flex';
+    requestAnimationFrame(() => m.classList.add('visible'));
+  }
+
+  function closeModal() {
+    const m = document.getElementById('modal-wrap');
+    m.classList.remove('visible');
+    setTimeout(() => { m.style.display = 'none'; selectedSlot = null; }, 250);
+  }
+
+  function openBlock(di, hi, hour, iso) {
+    selectedSlot = { di, hi, hour, iso };
+    document.getElementById('b-day').textContent = `${DAYS_FULL[di]} ${weekDates[di].getUTCDate()}`;
+    document.getElementById('b-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
+    document.getElementById('b-loc').textContent = LOC[currentLocation];
+    document.getElementById('block-reason').value = '';
+    document.getElementById('block-err').textContent = '';
+    showModalView('view-block');
+    openModal();
+  }
+
+  function openUnblock(di, hi, hour, iso) {
+    selectedSlot = { di, hi, hour, iso };
+    document.getElementById('u-day').textContent = `${DAYS_FULL[di]} ${weekDates[di].getUTCDate()}`;
+    document.getElementById('u-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
+    document.getElementById('u-loc').textContent = LOC[currentLocation];
+    document.getElementById('unblock-err').textContent = '';
+    showModalView('view-unblock');
+    openModal();
+  }
+
+  function openBooked(di, hi, hour, iso, booking) {
+    selectedSlot = { di, hi, hour, iso };
+    document.getElementById('k-day').textContent = `${DAYS_FULL[di]} ${weekDates[di].getUTCDate()}`;
+    document.getElementById('k-time').textContent = `${hour} – ${HOURS[hi + 1] || '21:00'}`;
+    document.getElementById('k-loc').textContent = LOC[currentLocation];
+    document.getElementById('k-email').textContent = booking ? booking.email : '—';
+    showModalView('view-booked');
+    openModal();
+  }
+
+  async function confirmBlock() {
+    if (!selectedSlot) return;
+    const reason = document.getElementById('block-reason').value.trim();
+    const btn = document.getElementById('btn-block');
+    const errEl = document.getElementById('block-err');
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="spinner"></span>Blocking…'; btn.disabled = true;
+    try {
+      await apiFetch('/admin/block', {
+        method: 'POST',
+        body: JSON.stringify({ slot_start: selectedSlot.iso, location: currentLocation, reason })
+      });
+      closeModal();
+      loadData();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Block slot'; btn.disabled = false;
+    }
+  }
+
+  async function confirmUnblock() {
+    if (!selectedSlot) return;
+    const btn = document.getElementById('btn-unblock');
+    const errEl = document.getElementById('unblock-err');
+    errEl.textContent = '';
+    btn.innerHTML = '<span class="spinner"></span>Unblocking…'; btn.disabled = true;
+    try {
+      const block = getBlockForSlot(selectedSlot.iso);
+      if (!block) throw new Error('Block not found. Try refreshing.');
+      await apiFetch(`/admin/block/${block.id}`, { method: 'DELETE' });
+      closeModal();
+      loadData();
+    } catch (e) {
+      errEl.textContent = e.message;
+    } finally {
+      btn.innerHTML = 'Unblock slot'; btn.disabled = false;
+    }
+  }
+
+  document.getElementById('modal-wrap').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-wrap')) closeModal();
+  });
+
+  // ── Init ──
+  if (token) {
+    apiFetch('/admin/bookings').then(() => showApp()).catch(() => {
+      token = null;
+      localStorage.removeItem('ls_admin_token');
+    });
+  }
+</script>
+</body>
+</html>
