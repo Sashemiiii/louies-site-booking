@@ -100,7 +100,7 @@
 
 <div class="login-screen" id="login-screen">
   <div class="login-card">
-    <img class="login-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System">
+    <img class="login-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System" style="filter: brightness(0) invert(1);">
     <div class="login-title">Admin access</div>
     <div class="login-sub">Log in with your admin credentials</div>
     <div class="field-wrap">
@@ -119,7 +119,7 @@
 <div class="app" id="app">
   <div class="topbar">
     <div class="topbar-left">
-      <img class="topbar-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System">
+      <img class="topbar-logo" src="https://pub-5553128a862e4b0582582817d0557f53.r2.dev/LOUIE'S%20SYSTEM.png" alt="Louie's System" style="filter: brightness(0) invert(1);">
       <div class="admin-badge">Admin</div>
     </div>
     <button class="btn-logout" onclick="doLogout()">Log out</button>
@@ -504,8 +504,8 @@
     btn.innerHTML = '<span class="spinner"></span>Blocking…'; btn.disabled = true;
     try {
       await apiFetch('/admin/block', {
-        method: 'POST',
-        body: JSON.stringify({ slot_start: selectedSlot.iso, location: currentLocation, reason })
+          method: 'POST',
+          body: JSON.stringify({ slot_start: selectedSlot.iso, location: 'both', reason })
       });
       closeModal();
       loadData();
@@ -523,15 +523,26 @@
     errEl.textContent = '';
     btn.innerHTML = '<span class="spinner"></span>Unblocking…'; btn.disabled = true;
     try {
-      const block = getBlockForSlot(selectedSlot.iso);
-      if (!block) throw new Error('Block not found. Try refreshing.');
-      await apiFetch(`/admin/block/${block.id}`, { method: 'DELETE' });
-      closeModal();
-      loadData();
+        // Delete both locations for this time slot
+        const otherLoc = currentLocation === 'bishan' ? 'farrer' : 'bishan';
+
+        // Fetch blocks for other location too
+        const otherBlockedRes = await apiFetch(`/admin/blocks?week=${weekParam()}&location=${otherLoc}`);
+        const otherBlock = otherBlockedRes.blocks.find(b => new Date(b.slot_start).toISOString() === selectedSlot.iso);
+
+        // Delete current location block
+        const block = getBlockForSlot(selectedSlot.iso);
+        if (block) await apiFetch(`/admin/block/${block.id}`, { method: 'DELETE' });
+
+        // Delete other location block if exists
+        if (otherBlock) await apiFetch(`/admin/block/${otherBlock.id}`, { method: 'DELETE' });
+
+        closeModal();
+        loadData();
     } catch (e) {
-      errEl.textContent = e.message;
+        errEl.textContent = e.message;
     } finally {
-      btn.innerHTML = 'Unblock slot'; btn.disabled = false;
+        btn.innerHTML = 'Unblock slot'; btn.disabled = false;
     }
   }
 
